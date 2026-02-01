@@ -223,4 +223,30 @@ public sealed class BossHexGlobalNPC : GlobalNPC
             }
         }
     }
+
+    /// <summary>
+    /// Called when an NPC is killed (not when it despawns).
+    /// This is the correct place to detect boss defeat.
+    /// </summary>
+    public override void OnKill(NPC npc)
+    {
+        if (!npc.boss)
+            return;
+
+        var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
+        if (!cfg.EnableBossHex)
+            return;
+
+        // Only process on server/singleplayer
+        if (Main.netMode == NetmodeID.MultiplayerClient)
+            return;
+
+        // Clear hex persistence for this boss type
+        BossHexManager.OnBossDefeated(npc.type);
+
+        if (Main.netMode == NetmodeID.Server)
+            ChatHelper.BroadcastChatMessage(NetworkText.FromLiteral("Boss defeated! Hex cleared."), Color.LimeGreen);
+        else
+            Main.NewText("Boss defeated! Hex cleared.", Color.LimeGreen);
+    }
 }

@@ -191,18 +191,58 @@ public static class BossHexManager
         CurrentBossType = -1;
     }
 
+    // Only include hexes that are actually implemented and working
+    private static readonly FlashyHex[] ImplementedFlashyHexes = new[]
+    {
+        FlashyHex.InvisibleBoss,
+        FlashyHex.WingClip,
+        FlashyHex.Blackout,
+        FlashyHex.TimeLimit,
+        FlashyHex.TinyFastBoss,
+        FlashyHex.HugeBoss,
+        FlashyHex.UnstableGravity,
+        FlashyHex.MeteorShower,
+        // NOT implemented: Reversal, Mirrored
+    };
+
+    private static readonly ModifierHex[] ImplementedModifierHexes = new[]
+    {
+        ModifierHex.SwiftBoss,
+        ModifierHex.Sluggish,
+        ModifierHex.Frail,
+        ModifierHex.BrokenArmor,
+        ModifierHex.GlassCannon,
+        // NOT implemented: ExtraPotionSickness, SlowAttack, ManaDrain, Inaccurate, Marked
+    };
+
+    private static readonly ConstraintHex[] ImplementedConstraintHexes = new[]
+    {
+        ConstraintHex.NoRangedDamage,
+        ConstraintHex.NoMeleeDamage,
+        ConstraintHex.NoMagicDamage,
+        ConstraintHex.Grounded,
+        ConstraintHex.NoGrapple,
+        // NOT implemented: NoBuffPotions, PacifistHealer
+    };
+
+    private static FlashyHex RollFlashyHex()
+    {
+        return ImplementedFlashyHexes[Main.rand.Next(ImplementedFlashyHexes.Length)];
+    }
+
+    private static ModifierHex RollModifierHex()
+    {
+        return ImplementedModifierHexes[Main.rand.Next(ImplementedModifierHexes.Length)];
+    }
+
+    private static ConstraintHex RollConstraintHex()
+    {
+        return ImplementedConstraintHexes[Main.rand.Next(ImplementedConstraintHexes.Length)];
+    }
+
     private static ActiveHexes RollHexes(int playerCount)
     {
         var hexes = new ActiveHexes();
-        
-        // Get enum values (skip None at index 0)
-        var flashyValues = Enum.GetValues(typeof(FlashyHex));
-        var modifierValues = Enum.GetValues(typeof(ModifierHex));
-        var constraintValues = Enum.GetValues(typeof(ConstraintHex));
-        
-        int flashyCount = flashyValues.Length - 1;
-        int modifierCount = modifierValues.Length - 1;
-        int constraintCount = constraintValues.Length - 1;
 
         if (playerCount == 1)
         {
@@ -211,13 +251,13 @@ public static class BossHexManager
             switch (category)
             {
                 case 0:
-                    hexes.Flashy = (FlashyHex)flashyValues.GetValue(Main.rand.Next(1, flashyCount + 1));
+                    hexes.Flashy = RollFlashyHex();
                     break;
                 case 1:
-                    hexes.Modifier = (ModifierHex)modifierValues.GetValue(Main.rand.Next(1, modifierCount + 1));
+                    hexes.Modifier = RollModifierHex();
                     break;
                 case 2:
-                    hexes.Constraint = (ConstraintHex)constraintValues.GetValue(Main.rand.Next(1, constraintCount + 1));
+                    hexes.Constraint = RollConstraintHex();
                     break;
             }
         }
@@ -232,13 +272,13 @@ public static class BossHexManager
                 switch (cat)
                 {
                     case 0:
-                        hexes.Flashy = (FlashyHex)flashyValues.GetValue(Main.rand.Next(1, flashyCount + 1));
+                        hexes.Flashy = RollFlashyHex();
                         break;
                     case 1:
-                        hexes.Modifier = (ModifierHex)modifierValues.GetValue(Main.rand.Next(1, modifierCount + 1));
+                        hexes.Modifier = RollModifierHex();
                         break;
                     case 2:
-                        hexes.Constraint = (ConstraintHex)constraintValues.GetValue(Main.rand.Next(1, constraintCount + 1));
+                        hexes.Constraint = RollConstraintHex();
                         break;
                 }
             }
@@ -246,9 +286,9 @@ public static class BossHexManager
         else
         {
             // 3+ players: 1 from each category
-            hexes.Flashy = (FlashyHex)flashyValues.GetValue(Main.rand.Next(1, flashyCount + 1));
-            hexes.Modifier = (ModifierHex)modifierValues.GetValue(Main.rand.Next(1, modifierCount + 1));
-            hexes.Constraint = (ConstraintHex)constraintValues.GetValue(Main.rand.Next(1, constraintCount + 1));
+            hexes.Flashy = RollFlashyHex();
+            hexes.Modifier = RollModifierHex();
+            hexes.Constraint = RollConstraintHex();
         }
 
         return hexes;

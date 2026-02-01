@@ -63,17 +63,9 @@ public sealed class PanicAtDawnState : ModSystem
         }
         else if (_wasAnyBossAlive && !anyBossAlive)
         {
-            // All bosses dead - was it defeated or did players die?
-            // For now, treat as defeated and clear persistence
-            if (_lastBossType >= 0)
-            {
-                BossHexManager.OnBossDefeated(_lastBossType);
-                
-                if (Main.netMode == NetmodeID.Server)
-                    ChatHelper.BroadcastChatMessage(NetworkText.FromLiteral("Boss defeated! Hex cleared."), Color.LimeGreen);
-                else if (Main.netMode != NetmodeID.MultiplayerClient)
-                    Main.NewText("Boss defeated! Hex cleared.", Color.LimeGreen);
-            }
+            // All bosses gone - could be defeat (handled by OnKill) or despawn/player death
+            // Don't clear hexes here - OnKill handles actual defeats
+            // Just clear the current fight state so next spawn re-rolls if needed
             _lastBossType = -1;
         }
 
