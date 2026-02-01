@@ -140,15 +140,20 @@ public sealed class PanicAtDawnState : ModSystem
             }
         }
 
-        // Meteor Shower
+        // Meteor Shower - should be visually dramatic!
         if (hexes.Flashy == FlashyHex.MeteorShower)
         {
             hexes.MeteorTicks++;
-            // Spawn falling stars periodically (every 0.5-1.5 seconds)
-            if (hexes.MeteorTicks >= 30 && Main.rand.NextBool(60))
+            // Spawn a burst of meteors every 15-25 ticks (roughly 4x per second)
+            if (hexes.MeteorTicks >= 15 + Main.rand.Next(10))
             {
                 hexes.MeteorTicks = 0;
-                SpawnMeteor();
+                // Spawn 2-4 meteors at once for visual impact
+                int count = 2 + Main.rand.Next(3);
+                for (int i = 0; i < count; i++)
+                {
+                    SpawnMeteor();
+                }
             }
         }
     }
@@ -166,21 +171,25 @@ public sealed class PanicAtDawnState : ModSystem
             if (p?.active != true || p.dead)
                 continue;
 
-            // Random X offset from player
-            float x = p.Center.X + Main.rand.Next(-600, 600);
-            float y = p.Center.Y - 800; // Above screen
+            // Wide spread around the player for dramatic effect
+            float x = p.Center.X + Main.rand.Next(-800, 800);
+            float y = p.Center.Y - 600 - Main.rand.Next(200); // Vary height too
 
             // Spawn a falling star projectile that damages players
             int projType = ProjectileID.FallingStar;
-            Vector2 velocity = new Vector2(Main.rand.Next(-2, 3), Main.rand.Next(10, 15));
+            // More varied velocities for visual interest
+            Vector2 velocity = new Vector2(
+                Main.rand.Next(-4, 5), 
+                Main.rand.Next(12, 20)
+            );
             
             Projectile.NewProjectile(
                 Terraria.Entity.GetSource_NaturalSpawn(),
                 x, y,
                 velocity.X, velocity.Y,
                 projType,
-                50, // Damage
-                2f,
+                25, // Reduced damage (was 50) - more spectacle than lethality
+                1f,
                 Main.myPlayer,
                 0f, 0f);
             
