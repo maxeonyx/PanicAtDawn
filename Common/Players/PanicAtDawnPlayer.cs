@@ -353,9 +353,8 @@ public sealed class PanicAtDawnPlayer : ModPlayer
                 break;
                 
             case ModifierHex.Sluggish:
-                // -25% movement speed
-                Player.moveSpeed *= 0.75f;
-                Player.maxRunSpeed *= 0.75f;
+                // Slow debuff (reapplied every frame so it appears permanent)
+                Player.AddBuff(BuffID.Slow, 2);
                 break;
                 
             case ModifierHex.SlowAttack:

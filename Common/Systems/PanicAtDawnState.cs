@@ -121,14 +121,23 @@ public sealed class PanicAtDawnState : ModSystem
             }
         }
 
-        // Unstable Gravity
+        // Unstable Gravity - flips at random intervals (4-8 seconds with jitter)
         if (hexes.Flashy == FlashyHex.UnstableGravity)
         {
             hexes.GravityFlipTicks++;
-            // Flip every 5-10 seconds randomly
-            if (hexes.GravityFlipTicks >= 60 * 5 && Main.rand.NextBool(60 * 5))
+            
+            // Set next flip time if not set
+            if (hexes.NextGravityFlipAt == 0)
             {
-                hexes.GravityFlipTicks = 0;
+                // 4-8 seconds (240-480 ticks)
+                hexes.NextGravityFlipAt = hexes.GravityFlipTicks + 240 + Main.rand.Next(240);
+            }
+            
+            if (hexes.GravityFlipTicks >= hexes.NextGravityFlipAt)
+            {
+                // Schedule next flip with jitter (4-8 seconds)
+                hexes.NextGravityFlipAt = hexes.GravityFlipTicks + 240 + Main.rand.Next(240);
+                
                 // Flip all players' gravity
                 for (int i = 0; i < Main.maxPlayers; i++)
                 {

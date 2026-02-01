@@ -6,12 +6,47 @@ namespace PanicAtDawn.Common.Systems;
 
 /*
  * =============================================================================
- * UNIMPLEMENTED HEX REQUIREMENTS
+ * HEX REQUIREMENTS & TODOs
+ * =============================================================================
+ * 
+ * TESTING CHECKLIST:
+ * To test a hex: Comment out all others in ImplementedFlashyHexes (etc.),
+ * rebuild mod, reload in-game, fight bosses.
+ * 
+ * Hexes needing testing:
+ *   [ ] Blackout - does darkness actually work?
+ *   [ ] TinyFastBoss - test across multiple bosses, is 1/3 size + 2x speed fun?
+ *   [ ] HugeBoss - test across multiple bosses, is 2x size noticeable/fun?
+ *   [ ] UnstableGravity - does it feel right?
+ *   [ ] MeteorShower - DONE, working well at 0.35 multiplier
+ * 
  * =============================================================================
  * 
  * FLASHY HEXES:
  * 
- * Reversal - Inverted controls
+ * InvisibleBoss - PARTIALLY IMPLEMENTED
+ *   - Currently: Only hides the boss sprite (alpha = 0)
+ *   - TODO: Hide boss projectiles (or make them semi-transparent)
+ *   - TODO: Hide dust/particles spawned by boss
+ *   - TODO: Hide minimap icon
+ *   - TODO: Consider hiding the bottom health bar (or just the name?)
+ *   - TODO: Handle multi-segment bosses (Eater of Worlds, Destroyer)
+ *   - TODO: Handle boss minions (Skeletron hands, Plantera tentacles, etc.)
+ * 
+ * Blackout - NEEDS TESTING
+ *   - Verify it actually works and creates the intended darkness effect
+ * 
+ * TimeLimit - NEEDS TUNING
+ *   - Currently: Flat 3 minutes for all bosses
+ *   - TODO: Get real DPS estimates by boss tier, based on gear available before that boss
+ *   - TODO: Calculate per-boss time limits from HP / expected DPS
+ *   - TODO: Scale time with player count and difficulty mode (Expert/Master)
+ *   - TODO: Extend time if Pacifist Healer hex is active (one less damage dealer)
+ *   - TODO: Hex conflict prevention - if the best pre-boss gear relies on a specific
+ *     damage type (e.g. Daedalus Stormbow for Destroyer = ranged), don't roll
+ *     TimeLimit + NoRangedDamage together. Need a conflict matrix.
+ * 
+ * Reversal - NOT IMPLEMENTED
  *   - Left/right movement keys are swapped
  *   - Possibly up/down too (jump vs down)
  *   - Should feel disorienting but learnable
@@ -27,6 +62,13 @@ namespace PanicAtDawn.Common.Systems;
  * -----------------------------------------------------------------------------
  * 
  * MODIFIER HEXES:
+ * 
+ * TODO: Where possible, use built-in Terraria debuffs instead of manual stat
+ * modification. Debuffs show an icon to the player and feel more native.
+ * Apply as a 2-tick debuff every frame for "permanent" effect during boss fight.
+ * 
+ * Already using buffs: Sluggish (Slow), BrokenArmor
+ * Need to check: Frail (is there a built-in?), SlowAttack, ManaDrain, etc.
  * 
  * ExtraPotionSickness - 3x potion sickness duration
  *   - When player uses a healing potion, multiply the PotionSickness debuff duration by 3
@@ -58,6 +100,11 @@ namespace PanicAtDawn.Common.Systems;
  * 
  * CONSTRAINT HEXES:
  * 
+ * NoMeleeDamage - POTENTIAL BUG
+ *   - Currently only blocks melee *projectiles* via ModifyHitNPCWithProj
+ *   - Direct sword swings (non-projectile melee) use ModifyHitNPC instead
+ *   - TODO: Add ModifyHitNPC hook to also block direct melee hits
+ * 
  * NoBuffPotions - Buff potions disabled (heal/mana OK)
  *   - Block use of buff potions (Ironskin, Swiftness, Regeneration, etc.)
  *   - Allow: Healing potions, Mana potions, Recall (if not otherwise disabled)
@@ -85,8 +132,8 @@ public enum FlashyHex
     Blackout,           // Extreme darkness
     TimeLimit,          // 3 minutes or everyone dies
     Reversal,           // Inverted controls
-    TinyFastBoss,       // 0.5x size, 1.5x speed
-    HugeBoss,           // 2x size
+    TinyFastBoss,       // 1/3 size, 2x speed
+    HugeBoss,           // 3x size, 1.75x speed
     Mirrored,           // Damaging clone spawns
     UnstableGravity,    // Gravity flips periodically
     MeteorShower,       // Falling stars damage players
@@ -134,6 +181,7 @@ public class ActiveHexes
     
     // For unstable gravity
     public int GravityFlipTicks { get; set; } = 0;
+    public int NextGravityFlipAt { get; set; } = 0;  // Target tick for next flip (0 = not set)
     
     // For meteor shower
     public int MeteorTicks { get; set; } = 0;
@@ -151,6 +199,7 @@ public class ActiveHexes
         TimeLimitTicks = 0;
         TimeLimitMaxTicks = 0;
         GravityFlipTicks = 0;
+        NextGravityFlipAt = 0;
         MeteorTicks = 0;
         PacifistHealerIndex = -1;
     }
@@ -269,7 +318,7 @@ public static class BossHexManager
         FlashyHex.InvisibleBoss,
         FlashyHex.WingClip,
         FlashyHex.Blackout,
-        FlashyHex.TimeLimit,
+        // FlashyHex.TimeLimit,  // DISABLED: Needs per-boss tuning, currently impossible for some bosses
         FlashyHex.TinyFastBoss,
         FlashyHex.HugeBoss,
         FlashyHex.UnstableGravity,

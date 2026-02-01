@@ -119,11 +119,11 @@ public sealed class BossHexGlobalNPC : GlobalNPC
 
             if (hexes.Flashy == FlashyHex.TinyFastBoss)
             {
-                npc.scale = _originalScale * 0.5f;
+                npc.scale = _originalScale * 0.33f;  // 1/3 size
             }
             else if (hexes.Flashy == FlashyHex.HugeBoss)
             {
-                npc.scale = _originalScale * 2f;
+                npc.scale = _originalScale * 3f;  // 3x size
             }
         }
     }
@@ -186,23 +186,27 @@ public sealed class BossHexGlobalNPC : GlobalNPC
 
     private void ApplyBossFlashyEffects(NPC npc, ActiveHexes hexes)
     {
-        // SwiftBoss is in Modifier but affects boss speed
-        // TinyFastBoss: 1.5x speed (scale handled in PostAI)
+        // TinyFastBoss: 2x speed (scale handled in OnSpawn)
         if (hexes.Flashy == FlashyHex.TinyFastBoss)
         {
-            // Boost velocity slightly each frame (capped to avoid runaway)
-            float speedMult = 1.5f;
-            float maxSpeed = 20f; // Reasonable cap to prevent instakill speeds
+            ApplySpeedMultiplier(npc, 2f, 25f);
+        }
+        // HugeBoss: 1.75x speed (scale handled in OnSpawn)
+        else if (hexes.Flashy == FlashyHex.HugeBoss)
+        {
+            ApplySpeedMultiplier(npc, 1.75f, 22f);
+        }
+    }
 
-            if (npc.velocity.Length() > 0.1f && npc.velocity.Length() < maxSpeed)
-            {
-                // Increase speed by adjusting velocity magnitude
-                float currentSpeed = npc.velocity.Length();
-                float targetSpeed = Math.Min(currentSpeed * speedMult, maxSpeed);
-                // Only apply a small boost per frame to avoid jitter
-                npc.velocity = Vector2.Normalize(npc.velocity) * 
-                    MathHelper.Lerp(currentSpeed, targetSpeed, 0.02f);
-            }
+    private void ApplySpeedMultiplier(NPC npc, float speedMult, float maxSpeed)
+    {
+        if (npc.velocity.Length() > 0.1f && npc.velocity.Length() < maxSpeed)
+        {
+            float currentSpeed = npc.velocity.Length();
+            float targetSpeed = Math.Min(currentSpeed * speedMult, maxSpeed);
+            // Only apply a small boost per frame to avoid jitter
+            npc.velocity = Vector2.Normalize(npc.velocity) * 
+                MathHelper.Lerp(currentSpeed, targetSpeed, 0.02f);
         }
     }
 
