@@ -58,7 +58,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
             UpdateWormholeDrip(cfg);
 
         if (cfg.EnableBossHex)
-            ApplyBossHex(PanicAtDawnState.CurrentBossHex);
+            ApplyBossHexes();
     }
 
     public override bool CanUseItem(Item item)
@@ -189,42 +189,153 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         Player.QuickSpawnItem(Player.GetSource_Misc("PanicAtDawn:WormholeDrip"), ItemID.WormholePotion, 1);
     }
 
-    private void ApplyBossHex(BossHex hex)
+    /// <summary>
+    /// Applies active boss hexes to the player. Only runs during boss fights.
+    /// </summary>
+    private void ApplyBossHexes()
     {
-        if (hex == BossHex.None)
+        var hexes = BossHexManager.Current;
+        if (!hexes.HasAnyHex)
             return;
 
-        bool anyBoss = false;
+        // Only apply during active boss fights
+        if (!AnyBossAlive())
+            return;
+
+        // Apply flashy hexes (player-side effects)
+        ApplyFlashyHex(hexes.Flashy);
+        
+        // Apply modifier hexes
+        ApplyModifierHex(hexes.Modifier);
+        
+        // Apply constraint hexes
+        ApplyConstraintHex(hexes.Constraint);
+    }
+
+    private void ApplyFlashyHex(FlashyHex hex)
+    {
+        switch (hex)
+        {
+            case FlashyHex.WingClip:
+                // Disable flight completely
+                Player.wingTime = 0f;
+                Player.rocketTime = 0;
+                break;
+                
+            case FlashyHex.Blackout:
+                // Extreme darkness - apply Blackout debuff
+                Player.AddBuff(BuffID.Blackout, 2);
+                break;
+                
+            // Other flashy hexes are handled elsewhere:
+            // - InvisibleBoss: BossHexGlobalNPC.PreDraw
+            // - TinyFastBoss/HugeBoss: BossHexGlobalNPC.PostAI
+            // - TimeLimit/UnstableGravity/MeteorShower: PanicAtDawnState
+            // - Reversal: TODO
+            // - Mirrored: TODO
+        }
+    }
+
+    private void ApplyModifierHex(ModifierHex hex)
+    {
+        switch (hex)
+        {
+            case ModifierHex.Frail:
+                // -20% max HP
+                Player.statLifeMax2 = (int)(Player.statLifeMax2 * 0.8f);
+                break;
+                
+            case ModifierHex.BrokenArmor:
+                // Defense halved (apply Broken Armor debuff)
+                Player.AddBuff(BuffID.BrokenArmor, 2);
+                break;
+                
+            case ModifierHex.Sluggish:
+                // -25% movement speed
+                Player.moveSpeed *= 0.75f;
+                Player.maxRunSpeed *= 0.75f;
+                break;
+                
+            case ModifierHex.SlowAttack:
+                // Reduced attack speed (Slow debuff approximates this)
+                Player.AddBuff(BuffID.Slow, 2);
+                break;
+                
+            // TODO: Implement remaining modifiers:
+            // - ExtraPotionSickness: needs hook in potion consumption
+            // - ManaDrain: modify mana costs
+            // - Inaccurate: spread projectiles
+            // - GlassCannon: damage modifier (partially in BossHexGlobalNPC)
+            // - Marked: boss damage boost (in BossHexGlobalNPC)
+            // - SwiftBoss: handled in BossHexGlobalNPC
+        }
+    }
+
+    private void ApplyConstraintHex(ConstraintHex hex)
+    {
+        switch (hex)
+        {
+            case ConstraintHex.Grounded:
+                // No jumping - cancel any upward velocity from jumps
+                // We detect jump attempts and zero out
+                if (Player.velocity.Y < 0 && Player.controlJump)
+                {
+                    Player.velocity.Y = 0;
+                }
+                // Also disable rocket boots, cloud jumps, etc.
+                Player.jumpSpeedBoost = 0;
+                Player.jumpBoost = false;
+                break;
+                
+            case ConstraintHex.NoGrapple:
+                // Handled separately in CanUseItem or via hook projectile cancellation
+                break;
+                
+            // TODO: Implement remaining constraints:
+            // - NoBuffPotions: check item use
+            // - NoRangedDamage/NoMeleeDamage/NoMagicDamage: damage modifiers
+            // - PacifistHealer: special role assignment
+        }
+    }
+
+    /// <summary>
+    /// Block certain item uses based on active hexes.
+    /// </summary>
+    public bool IsItemBlockedByHex(Item item)
+    {
+        var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
+        if (!cfg.EnableBossHex)
+            return false;
+
+        var hexes = BossHexManager.Current;
+        if (!hexes.HasAnyHex || !AnyBossAlive())
+            return false;
+
+        // NoGrapple constraint
+        if (hexes.Constraint == ConstraintHex.NoGrapple)
+        {
+            // Check if item is a grappling hook
+            if (item.shoot > 0)
+            {
+                var proj = new Projectile();
+                proj.SetDefaults(item.shoot);
+                if (proj.aiStyle == 7) // Grapple AI
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool AnyBossAlive()
+    {
         for (int i = 0; i < Main.maxNPCs; i++)
         {
             var n = Main.npc[i];
             if (n.active && n.boss)
-            {
-                anyBoss = true;
-                break;
-            }
+                return true;
         }
-        if (!anyBoss)
-            return;
-
-        switch (hex)
-        {
-            case BossHex.Darkness:
-                Player.AddBuff(BuffID.Darkness, 2);
-                break;
-            case BossHex.Weak:
-                Player.AddBuff(BuffID.Weak, 2);
-                break;
-            case BossHex.Slow:
-                Player.AddBuff(BuffID.Slow, 2);
-                break;
-            case BossHex.WingClip:
-                Player.wingTime = 0f;
-                break;
-            case BossHex.Frail:
-                Player.statLifeMax2 = (int)(Player.statLifeMax2 * 0.8f);
-                break;
-        }
+        return false;
     }
 
     private int FindClosestLinkedTeammate()
