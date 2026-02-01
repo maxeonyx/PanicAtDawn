@@ -4,6 +4,79 @@ using Terraria;
 
 namespace PanicAtDawn.Common.Systems;
 
+/*
+ * =============================================================================
+ * UNIMPLEMENTED HEX REQUIREMENTS
+ * =============================================================================
+ * 
+ * FLASHY HEXES:
+ * 
+ * Reversal - Inverted controls
+ *   - Left/right movement keys are swapped
+ *   - Possibly up/down too (jump vs down)
+ *   - Should feel disorienting but learnable
+ *   - Hook: ModifyPlayer input or velocity manipulation in PostUpdate
+ * 
+ * Mirrored - Damaging clone spawns
+ *   - Spawn a "shadow" copy of the boss that mirrors its movements
+ *   - Clone deals reduced damage (maybe 50%)
+ *   - Clone has no HP bar, disappears when real boss dies
+ *   - Visual: semi-transparent or different color tint
+ *   - Implementation: Spawn a custom NPC that copies boss AI/position mirrored
+ * 
+ * -----------------------------------------------------------------------------
+ * 
+ * MODIFIER HEXES:
+ * 
+ * ExtraPotionSickness - 3x potion sickness duration
+ *   - When player uses a healing potion, multiply the PotionSickness debuff duration by 3
+ *   - Hook: OnConsumeMana or detect buff application and extend it
+ *   - Should make potion timing much more critical
+ * 
+ * SlowAttack - Reduced attack speed
+ *   - Reduce player attack speed by ~30-40%
+ *   - Hook: ModifyWeaponSpeed or similar
+ *   - Affects all weapon types (melee swing, ranged fire rate, spell cast)
+ * 
+ * ManaDrain - Mana costs +50%
+ *   - All mana costs increased by 50%
+ *   - Hook: ModifyManaCost
+ *   - Makes mage builds more challenging, need to manage mana carefully
+ * 
+ * Inaccurate - Ranged spread increased
+ *   - Add random spread/deviation to all ranged projectiles
+ *   - Hook: ModifyShootStats or Shoot override
+ *   - Spread angle: maybe ±5-10 degrees
+ *   - Makes precision shots unreliable
+ * 
+ * Marked - Boss deals +25% damage
+ *   - All boss attacks deal 25% more damage to players
+ *   - Hook: ModifyHitByNPC on the player, check if attacker is boss
+ *   - Stacks with GlassCannon if both active? (probably not, different categories)
+ * 
+ * -----------------------------------------------------------------------------
+ * 
+ * CONSTRAINT HEXES:
+ * 
+ * NoBuffPotions - Buff potions disabled (heal/mana OK)
+ *   - Block use of buff potions (Ironskin, Swiftness, Regeneration, etc.)
+ *   - Allow: Healing potions, Mana potions, Recall (if not otherwise disabled)
+ *   - Hook: CanUseItem, check if item.buffType > 0 and isn't a heal/mana restore
+ *   - Show message when blocked: "Buff potions are disabled!"
+ * 
+ * PacifistHealer - One player heals teammates instead of damaging
+ *   - Randomly assign one player as the "healer" at fight start
+ *   - That player's attacks deal 0 damage to the boss
+ *   - Instead, their hits heal nearby teammates for a portion of the damage
+ *   - Announce who is the healer at fight start
+ *   - Hook: ModifyHitNPCWithProj/ModifyHitNPC to zero damage
+ *   - Hook: OnHitNPC to trigger healing effect on nearby players
+ *   - Visual: healing particles when "attacking"
+ *   - Only meaningful with 2+ players (skip or reroll in singleplayer)
+ * 
+ * =============================================================================
+ */
+
 public enum FlashyHex
 {
     None = 0,
@@ -191,7 +264,6 @@ public static class BossHexManager
         CurrentBossType = -1;
     }
 
-    // Only include hexes that are actually implemented and working
     private static readonly FlashyHex[] ImplementedFlashyHexes = new[]
     {
         FlashyHex.InvisibleBoss,

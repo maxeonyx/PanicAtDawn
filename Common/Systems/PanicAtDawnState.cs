@@ -16,6 +16,9 @@ public sealed class PanicAtDawnState : ModSystem
     private bool _wasAnyBossAlive;
     private bool _dawnHandledThisNight;
     private int _lastBossType = -1;
+    
+    // Meteor shower controller
+    private readonly MeteorShowerController _meteorController = new();
 
     public override void OnWorldLoad()
     {
@@ -24,6 +27,7 @@ public sealed class PanicAtDawnState : ModSystem
         _dawnHandledThisNight = false;
         _lastBossType = -1;
         BossHexManager.OnWorldLoad();
+        _meteorController.Reset();
     }
 
     public override void PostUpdateWorld()
@@ -60,6 +64,8 @@ public sealed class PanicAtDawnState : ModSystem
         {
             // Boss just spawned - this is handled by GlobalNPC.OnSpawn
             _lastBossType = bossType;
+            // Reset meteor controller for fresh engagement curve
+            _meteorController.Reset();
         }
         else if (_wasAnyBossAlive && !anyBossAlive)
         {
@@ -140,60 +146,10 @@ public sealed class PanicAtDawnState : ModSystem
             }
         }
 
-        // Meteor Shower - should be visually dramatic!
+        // Meteor Shower - uses dedicated controller for clustered spawning
         if (hexes.Flashy == FlashyHex.MeteorShower)
         {
-            hexes.MeteorTicks++;
-            // Spawn a burst of meteors every 15-25 ticks (roughly 4x per second)
-            if (hexes.MeteorTicks >= 15 + Main.rand.Next(10))
-            {
-                hexes.MeteorTicks = 0;
-                // Spawn 2-4 meteors at once for visual impact
-                int count = 2 + Main.rand.Next(3);
-                for (int i = 0; i < count; i++)
-                {
-                    SpawnMeteor();
-                }
-            }
-        }
-    }
-
-    private void SpawnMeteor()
-    {
-        if (Main.netMode == NetmodeID.MultiplayerClient)
-            return;
-
-        // Spawn near a random active player
-        for (int attempt = 0; attempt < 10; attempt++)
-        {
-            int playerIdx = Main.rand.Next(Main.maxPlayers);
-            var p = Main.player[playerIdx];
-            if (p?.active != true || p.dead)
-                continue;
-
-            // Wide spread around the player for dramatic effect
-            float x = p.Center.X + Main.rand.Next(-800, 800);
-            float y = p.Center.Y - 600 - Main.rand.Next(200); // Vary height too
-
-            // Spawn a falling star projectile that damages players
-            int projType = ProjectileID.FallingStar;
-            // More varied velocities for visual interest
-            Vector2 velocity = new Vector2(
-                Main.rand.Next(-4, 5), 
-                Main.rand.Next(12, 20)
-            );
-            
-            Projectile.NewProjectile(
-                Terraria.Entity.GetSource_NaturalSpawn(),
-                x, y,
-                velocity.X, velocity.Y,
-                projType,
-                25, // Reduced damage (was 50) - more spectacle than lethality
-                1f,
-                Main.myPlayer,
-                0f, 0f);
-            
-            break;
+            _meteorController.Update();
         }
     }
 
