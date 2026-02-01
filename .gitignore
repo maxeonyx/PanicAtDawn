@@ -1,0 +1,19 @@
+# Build outputs
+bin/
+obj/
+
+# tModLoader build artifacts
+*.tmod
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# Python
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db
