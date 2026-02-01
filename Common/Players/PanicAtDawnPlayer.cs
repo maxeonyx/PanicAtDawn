@@ -64,20 +64,122 @@ public sealed class PanicAtDawnPlayer : ModPlayer
     public override bool CanUseItem(Item item)
     {
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
-        if (!cfg.DisableRecallAndMirrors)
-            return base.CanUseItem(item);
-
-        if (item.type is ItemID.RecallPotion or ItemID.MagicMirror or ItemID.IceMirror or ItemID.CellPhone or ItemID.Shellphone)
+        
+        // Check recall/mirror restrictions
+        if (cfg.DisableRecallAndMirrors)
         {
-            if (Main.myPlayer == Player.whoAmI && _denyUseTextCooldown <= 0)
+            if (item.type is ItemID.RecallPotion or ItemID.MagicMirror or ItemID.IceMirror or ItemID.CellPhone or ItemID.Shellphone)
             {
-                Main.NewText("Recall/mirrors are disabled. Use Wormhole Potions to regroup.");
-                _denyUseTextCooldown = 90;
+                if (Main.myPlayer == Player.whoAmI && _denyUseTextCooldown <= 0)
+                {
+                    Main.NewText("Recall/mirrors are disabled. Use Wormhole Potions to regroup.");
+                    _denyUseTextCooldown = 90;
+                }
+                return false;
             }
-            return false;
+        }
+
+        // Check boss hex restrictions
+        if (cfg.EnableBossHex && AnyBossAlive())
+        {
+            var hexes = BossHexManager.Current;
+            
+            // NoGrapple constraint - block grappling hooks
+            if (hexes.Constraint == ConstraintHex.NoGrapple && IsGrapplingHook(item))
+            {
+                if (Main.myPlayer == Player.whoAmI && _denyUseTextCooldown <= 0)
+                {
+                    Main.NewText("Grappling hooks are disabled by the No Grapple hex!", Color.Orange);
+                    _denyUseTextCooldown = 60;
+                }
+                return false;
+            }
         }
 
         return base.CanUseItem(item);
+    }
+
+    /// <summary>
+    /// Check if an item is a grappling hook by checking if it shoots a grapple projectile.
+    /// </summary>
+    private static bool IsGrapplingHook(Item item)
+    {
+        if (item.shoot <= 0)
+            return false;
+        
+        // Check if the projectile has grapple AI (aiStyle 7)
+        // We need to check the projectile defaults
+        try
+        {
+            var proj = new Projectile();
+            proj.SetDefaults(item.shoot);
+            return proj.aiStyle == 7; // Grapple AI
+        }
+        catch
+        {
+            // Defensive: if anything goes wrong, don't block the item
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Modify damage dealt to NPCs based on active hexes.
+    /// This handles melee weapon hits (not projectiles).
+    /// </summary>
+    public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
+    {
+        if (!target.boss)
+            return;
+
+        var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
+        if (!cfg.EnableBossHex)
+            return;
+
+        var hexes = BossHexManager.Current;
+        
+        // NoMeleeDamage - melee attacks deal no damage to bosses
+        if (hexes.Constraint == ConstraintHex.NoMeleeDamage)
+        {
+            modifiers.FinalDamage *= 0f;
+        }
+    }
+
+    /// <summary>
+    /// Modify projectile damage dealt to NPCs based on active hexes.
+    /// </summary>
+    public override void ModifyHitNPCWithProj(Projectile proj, NPC target, ref NPC.HitModifiers modifiers)
+    {
+        if (!target.boss)
+            return;
+
+        var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
+        if (!cfg.EnableBossHex)
+            return;
+
+        var hexes = BossHexManager.Current;
+        
+        // Determine damage class of the projectile
+        bool isRanged = proj.DamageType == DamageClass.Ranged || proj.DamageType.CountsAsClass(DamageClass.Ranged);
+        bool isMagic = proj.DamageType == DamageClass.Magic || proj.DamageType.CountsAsClass(DamageClass.Magic);
+        bool isMelee = proj.DamageType == DamageClass.Melee || proj.DamageType.CountsAsClass(DamageClass.Melee);
+
+        // NoRangedDamage - ranged projectiles deal no damage to bosses
+        if (hexes.Constraint == ConstraintHex.NoRangedDamage && isRanged)
+        {
+            modifiers.FinalDamage *= 0f;
+        }
+
+        // NoMagicDamage - magic projectiles deal no damage to bosses
+        if (hexes.Constraint == ConstraintHex.NoMagicDamage && isMagic)
+        {
+            modifiers.FinalDamage *= 0f;
+        }
+
+        // NoMeleeDamage - melee projectiles deal no damage to bosses
+        if (hexes.Constraint == ConstraintHex.NoMeleeDamage && isMelee)
+        {
+            modifiers.FinalDamage *= 0f;
+        }
     }
 
     private void UpdateLinkSanity(PanicAtDawnConfig cfg)
@@ -296,35 +398,6 @@ public sealed class PanicAtDawnPlayer : ModPlayer
             // - NoRangedDamage/NoMeleeDamage/NoMagicDamage: damage modifiers
             // - PacifistHealer: special role assignment
         }
-    }
-
-    /// <summary>
-    /// Block certain item uses based on active hexes.
-    /// </summary>
-    public bool IsItemBlockedByHex(Item item)
-    {
-        var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
-        if (!cfg.EnableBossHex)
-            return false;
-
-        var hexes = BossHexManager.Current;
-        if (!hexes.HasAnyHex || !AnyBossAlive())
-            return false;
-
-        // NoGrapple constraint
-        if (hexes.Constraint == ConstraintHex.NoGrapple)
-        {
-            // Check if item is a grappling hook
-            if (item.shoot > 0)
-            {
-                var proj = new Projectile();
-                proj.SetDefaults(item.shoot);
-                if (proj.aiStyle == 7) // Grapple AI
-                    return true;
-            }
-        }
-
-        return false;
     }
 
     private static bool AnyBossAlive()

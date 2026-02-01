@@ -259,7 +259,9 @@ public static class BossHexManager
         int count = 0;
         for (int i = 0; i < Main.maxPlayers; i++)
         {
-            if (Main.player[i]?.active == true)
+            var p = Main.player[i];
+            // Check active AND that the player has a name (real player, not empty slot)
+            if (p?.active == true && !string.IsNullOrEmpty(p.name))
                 count++;
         }
         return Math.Max(1, count);
