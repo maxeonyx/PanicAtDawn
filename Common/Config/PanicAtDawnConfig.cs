@@ -64,7 +64,4 @@ public sealed class PanicAtDawnConfig : ModConfig
 
     [DefaultValue(true)]
     public bool DropInventoryOnDawnDeath;
-
-    [DefaultValue(true)]
-    public bool EnableBossHex;
 }

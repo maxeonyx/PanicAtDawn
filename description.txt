@@ -4,6 +4,7 @@ Features (all configurable):
 - Sanity: stray too far from teammates and sanity drains. At zero, you panic and take damage until you die. Stay near your bed spawn to recover.
 - No Recall: Magic Mirror and Recall Potions are converted to Wormhole Potions - your emergency regroup tool.
 - Die at Dawn: when the sun rises, if you're not near your bed spawn, you die and drop your inventory.
-- Boss Hex (optional): each boss fight rolls a random debuff that affects you for the whole fight.
 
 Perfect for a tense co-op experience with your friends!
+
+For random boss fight modifiers, pair with the Boss Hexes mod.
