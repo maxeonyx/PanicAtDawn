@@ -1,7 +1,5 @@
 using Microsoft.Xna.Framework;
 using Terraria;
-using Terraria.DataStructures;
-using Terraria.ID;
 
 namespace PanicAtDawn.Common.Systems;
 
@@ -24,22 +22,5 @@ public static class Shelter
         float distTiles = (float)System.Math.Sqrt(distX * distX + distY * distY);
 
         return distTiles <= radiusTiles;
-    }
-
-    public static void DropInventory(Player p)
-    {
-        if (Main.netMode == NetmodeID.MultiplayerClient)
-            return;
-
-        // Only drop the main inventory (including coins/ammo) to avoid nuking loadouts.
-        for (int i = 0; i < p.inventory.Length; i++)
-        {
-            var item = p.inventory[i];
-            if (item is null || item.IsAir)
-                continue;
-
-            Item.NewItem(p.GetSource_Death(), p.getRect(), item.type, item.stack);
-            item.TurnToAir();
-        }
     }
 }

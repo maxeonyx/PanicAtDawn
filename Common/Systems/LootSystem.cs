@@ -20,7 +20,7 @@ public sealed class LootSystem : ModSystem
     private static void ReplaceRecallInAllChests()
     {
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
-        if (!cfg.ConvertDroppedRecallToWormhole)
+        if (!cfg.ReplaceRecallWithWormhole)
             return;
 
         // Chests store items directly; GlobalItem.OnSpawn won't run for these.

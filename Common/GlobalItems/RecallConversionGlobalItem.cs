@@ -11,7 +11,7 @@ public sealed class RecallConversionGlobalItem : GlobalItem
     public override void OnSpawn(Item item, Terraria.DataStructures.IEntitySource source)
     {
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
-        if (!cfg.ConvertDroppedRecallToWormhole)
+        if (!cfg.ReplaceRecallWithWormhole)
             return;
 
         if (item.type != ItemID.RecallPotion)

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.ID;
@@ -13,19 +14,30 @@ public sealed class PanicAtDawnPlayer : ModPlayer
 {
     public float Sanity;
     public int DawnGraceTicks;
-    public bool IsInSafeZone; // Exposed for UI to show recovery color
-    private int _wormholeDripTicks;
+    public bool IsSanityRecovering; // True when sanity is regenerating (near spawn OR near teammate) - for UI gold bar
     private int _suffocateTick;
     private int _denyUseTextCooldown;
+    private int _netSyncTimer; // Throttle network sync
 
     public override void Initialize()
     {
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
         Sanity = cfg.SanityMax;
         DawnGraceTicks = 0;
-        _wormholeDripTicks = 0;
         _suffocateTick = 0;
         _denyUseTextCooldown = 0;
+        _netSyncTimer = 0;
+    }
+
+    public override void SyncPlayer(int toWho, int fromWho, bool newPlayer)
+    {
+        // Send sanity state when player joins or needs sync
+        ModPacket packet = Mod.GetPacket();
+        packet.Write((byte)PanicAtDawn.MessageType.SyncSanity);
+        packet.Write((byte)Player.whoAmI);
+        packet.Write(Sanity);
+        packet.Write(IsSanityRecovering);
+        packet.Send(toWho, fromWho);
     }
 
     public override void OnRespawn()
@@ -51,11 +63,26 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         if (_denyUseTextCooldown > 0)
             _denyUseTextCooldown--;
 
-        if (cfg.EnableLinkSanity)
-            UpdateLinkSanity(cfg);
+        // Sanity logic runs on server (or singleplayer) only - server is authoritative
+        bool isServerOrSingleplayer = Main.netMode != NetmodeID.MultiplayerClient;
 
-        if (cfg.EnableWormholeDrip)
-            UpdateWormholeDrip(cfg);
+        if (cfg.EnableLinkSanity && isServerOrSingleplayer)
+        {
+            UpdateLinkSanity(cfg);
+            
+            // Sync sanity to clients periodically (every 6 ticks = 10Hz)
+            if (Main.netMode == NetmodeID.Server)
+            {
+                _netSyncTimer++;
+                if (_netSyncTimer >= 6)
+                {
+                    _netSyncTimer = 0;
+                    SyncPlayer(-1, -1, false);
+                }
+            }
+        }
+
+
     }
 
     public override bool CanUseItem(Item item)
@@ -83,17 +110,23 @@ public sealed class PanicAtDawnPlayer : ModPlayer
     {
         // Check if player is near their spawn point (bed).
         bool nearSpawn = Shelter.IsNearSpawnPoint(Player, cfg.SpawnSafeRadiusTiles);
-        IsInSafeZone = nearSpawn;
 
         if (nearSpawn)
         {
             // Safe near spawn: regen sanity.
             Sanity = Math.Clamp(Sanity + (cfg.SanityRegenPerSecond / 60f), 0f, cfg.SanityMax);
+            IsSanityRecovering = true;
             _suffocateTick = 0;
             return;
         }
 
         int teammate = FindClosestLinkedTeammate();
+        
+        // Debug: log teammate detection
+        if (Main.GameUpdateCount % 120 == 0) // Every 2 seconds
+        {
+            Mod.Logger.Info($"[Sanity] Player {Player.name}: teammate={teammate}, sanity={Sanity:F1}, netMode={Main.netMode}");
+        }
 
         // Calculate drain rate.
         float drainRate = cfg.SanityDrainPerSecond;
@@ -110,6 +143,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         {
             // Singleplayer / no linked teammate: sanity drains continuously.
             Sanity = Math.Clamp(Sanity - (drainRate / 60f), 0f, cfg.SanityMax);
+            IsSanityRecovering = false;
 
             if (Sanity > 0f)
             {
@@ -127,18 +161,30 @@ public sealed class PanicAtDawnPlayer : ModPlayer
 
         float delta = 0f;
         if (dist <= radiusPx)
-            delta = cfg.SanityRegenPerSecond;
+        {
+            // Shared regen pool: 2× regen rate distributed by inverse sanity (lower player gets more)
+            // If A has half the sanity of B, A gets 2/3 of the pool, B gets 1/3
+            var otherMod = other.GetModPlayer<PanicAtDawnPlayer>();
+            float sharedPool = cfg.SanityRegenPerSecond * 2f;
+            
+            // Weight by inverse of current sanity (lower sanity = higher weight)
+            // Clamp to avoid division by zero
+            float weightMe = 1f / Math.Max(Sanity, 0.01f);
+            float weightOther = 1f / Math.Max(otherMod.Sanity, 0.01f);
+            float totalWeight = weightMe + weightOther;
+            
+            float myShare = (weightMe / totalWeight) * sharedPool;
+            
+            delta = myShare;
+            IsSanityRecovering = true; // Near teammate = recovering (gold bar)
+        }
         else
+        {
             delta = -drainRate;
+            IsSanityRecovering = false;
+        }
 
         Sanity = Math.Clamp(Sanity + (delta / 60f), 0f, cfg.SanityMax);
-
-        // Shared pool for a duo: snap both to the lower sanity, so separation hurts both.
-        // (This stays stable for >2 players as well: it tends toward the group's minimum.)
-        var otherMod = other.GetModPlayer<PanicAtDawnPlayer>();
-        float shared = Math.Min(Sanity, otherMod.Sanity);
-        Sanity = shared;
-        otherMod.Sanity = shared;
 
         if (Sanity > 0f)
         {
@@ -153,39 +199,40 @@ public sealed class PanicAtDawnPlayer : ModPlayer
     {
         // Apply damage as a steady DOT. Server is authoritative.
         _suffocateTick++;
+        
+        // Debug: log when we're about to apply damage
+        if (_suffocateTick >= 60 && Main.netMode != NetmodeID.MultiplayerClient)
+        {
+            Mod.Logger.Info($"[Suffocation] Player {Player.name}: tick={_suffocateTick}, dead={Player.dead}, netMode={Main.netMode}");
+        }
+        
         if (_suffocateTick < 60)
             return;
         _suffocateTick = 0;
 
-        if (Main.netMode == NetmodeID.MultiplayerClient)
-            return;
-
         if (Player.dead)
             return;
 
-        Player.Hurt(Terraria.DataStructures.PlayerDeathReason.ByCustomReason(NetworkText.FromLiteral($"{Player.name} had a panic attack.")), cfg.SuffocationDamagePerSecond, 0);
-    }
+        int damage = cfg.SuffocationDamagePerSecond;
 
-    private void UpdateWormholeDrip(PanicAtDawnConfig cfg)
-    {
-        // Very low, deterministic rate. If you already have enough, it pauses.
-        if (cfg.WormholeDripStackCap <= 0)
-            return;
-
-        int current = CountItems(ItemID.WormholePotion);
-        if (current >= cfg.WormholeDripStackCap)
-            return;
-
-        _wormholeDripTicks++;
-        int intervalTicks = Math.Max(1, cfg.WormholeDripSeconds) * 60;
-        if (_wormholeDripTicks < intervalTicks)
-            return;
-        _wormholeDripTicks = 0;
-
-        if (Main.netMode == NetmodeID.MultiplayerClient)
-            return;
-
-        Player.QuickSpawnItem(Player.GetSource_Misc("PanicAtDawn:WormholeDrip"), ItemID.WormholePotion, 1);
+        if (Main.netMode == NetmodeID.Server)
+        {
+            // Server: send packet to client telling them to hurt themselves
+            // (Player health is client-authoritative in Terraria)
+            Mod.Logger.Info($"[Suffocation] Sending {damage} damage packet to {Player.name} (whoAmI={Player.whoAmI})");
+            ModPacket packet = Mod.GetPacket();
+            packet.Write((byte)PanicAtDawn.MessageType.ApplySuffocation);
+            packet.Write((byte)Player.whoAmI);
+            packet.Write(damage);
+            packet.Send(Player.whoAmI); // Send only to the target client
+        }
+        else if (Main.netMode == NetmodeID.SinglePlayer)
+        {
+            // Singleplayer: apply damage directly
+            Mod.Logger.Info($"[Suffocation] Dealing {damage} damage to {Player.name}");
+            Player.Hurt(Terraria.DataStructures.PlayerDeathReason.ByCustomReason(NetworkText.FromLiteral($"{Player.name} had a panic attack.")), damage, 0);
+        }
+        // MultiplayerClient: do nothing here, wait for server packet
     }
 
     private int FindClosestLinkedTeammate()
@@ -229,9 +276,15 @@ public sealed class PanicAtDawnPlayer : ModPlayer
 
     private bool IsPlayerInDarkness()
     {
-        // Check if player has the Darkness debuff, or if local lighting is very low.
+        // Check if player has the Darkness debuff.
         if (Player.HasBuff(BuffID.Darkness) || Player.HasBuff(BuffID.Blackout))
             return true;
+
+        // Lighting check only works on clients (servers don't calculate lighting).
+        // On dedicated servers, darkness drain bonus only applies with debuffs.
+        // For "host and play" (listen servers), lighting works normally.
+        if (Main.netMode == NetmodeID.Server && Main.dedServ)
+            return false;
 
         // Check tile lighting at player position.
         Point tile = Player.Center.ToTileCoordinates();

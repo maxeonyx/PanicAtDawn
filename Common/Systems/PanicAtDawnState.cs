@@ -9,12 +9,10 @@ namespace PanicAtDawn.Common.Systems;
 
 public sealed class PanicAtDawnState : ModSystem
 {
-    private bool _wasDayTime;
     private bool _dawnHandledThisNight;
 
     public override void OnWorldLoad()
     {
-        _wasDayTime = Main.dayTime;
         _dawnHandledThisNight = false;
     }
 
@@ -35,34 +33,33 @@ public sealed class PanicAtDawnState : ModSystem
                 ApplyDawnRule(cfg);
             }
         }
-
-        _wasDayTime = Main.dayTime;
     }
 
-    private static void ApplyDawnRule(PanicAtDawnConfig cfg)
+    private void ApplyDawnRule(PanicAtDawnConfig cfg)
     {
-        if (Main.netMode == NetmodeID.MultiplayerClient)
-            return;
-
-        for (int i = 0; i < Main.maxPlayers; i++)
+        if (Main.netMode == NetmodeID.Server)
         {
-            var p = Main.player[i];
+            // Multiplayer: tell all clients to check dawn safety locally
+            // (clients know their own spawn point, server may not)
+            PanicAtDawn.SendCheckDawn(Mod);
+        }
+        else if (Main.netMode == NetmodeID.SinglePlayer)
+        {
+            // Singleplayer: check directly
+            Player p = Main.LocalPlayer;
             if (p is null || !p.active || p.dead)
-                continue;
+                return;
 
             if (p.GetModPlayer<PanicAtDawnPlayer>().DawnGraceTicks > 0)
-                continue;
+                return;
 
             bool safe = Shelter.IsNearSpawnPoint(p, cfg.SpawnSafeRadiusTiles);
-
-            if (safe)
-                continue;
-
-            if (cfg.DropInventoryOnDawnDeath)
-                Shelter.DropInventory(p);
-
-            p.KillMe(Terraria.DataStructures.PlayerDeathReason.ByCustomReason(
-                NetworkText.FromLiteral($"{p.name} was caught outside at dawn.")), 9999.0, 0);
+            if (!safe)
+            {
+                p.KillMe(Terraria.DataStructures.PlayerDeathReason.ByCustomReason(
+                    NetworkText.FromLiteral($"{p.name} was caught outside at dawn.")),
+                    9999.0, 0);
+            }
         }
     }
 }

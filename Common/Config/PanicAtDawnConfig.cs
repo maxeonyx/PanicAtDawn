@@ -38,18 +38,7 @@ public sealed class PanicAtDawnConfig : ModConfig
     public bool DisableRecallAndMirrors;
 
     [DefaultValue(true)]
-    public bool ConvertDroppedRecallToWormhole;
-
-    [DefaultValue(true)]
-    public bool EnableWormholeDrip;
-
-    [DefaultValue(480)]
-    [Range(30, 3600)]
-    public int WormholeDripSeconds;
-
-    [DefaultValue(3)]
-    [Range(0, 30)]
-    public int WormholeDripStackCap;
+    public bool ReplaceRecallWithWormhole;
 
     [DefaultValue(true)]
     public bool EnableDawnShelterRule;
@@ -61,7 +50,4 @@ public sealed class PanicAtDawnConfig : ModConfig
     [DefaultValue(50)]
     [Range(20, 300)]
     public int SpawnSafeRadiusTiles;
-
-    [DefaultValue(true)]
-    public bool DropInventoryOnDawnDeath;
 }

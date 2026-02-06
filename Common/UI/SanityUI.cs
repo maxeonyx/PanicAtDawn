@@ -86,8 +86,8 @@ public sealed class SanityUI : ModSystem
         if (!_isVisible)
             return true;
 
-        Texture2D socketTex = mp.IsInSafeZone ? _socketGoldTex.Value : _socketGrayTex.Value;
-        Texture2D fillTex = mp.IsInSafeZone ? _goldTex.Value : _grayTex.Value;
+        Texture2D socketTex = mp.IsSanityRecovering ? _socketGoldTex.Value : _socketGrayTex.Value;
+        Texture2D fillTex = mp.IsSanityRecovering ? _goldTex.Value : _grayTex.Value;
 
         // Restart spritebatch with point filtering for crisp pixels
         Main.spriteBatch.End();

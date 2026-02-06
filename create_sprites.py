@@ -89,10 +89,10 @@ def create_fill(size=8, top_color=(150, 150, 150), bot_color=(120, 120, 120), hi
     return img
 
 # Create the sprites
-# Gray socket - purple-grey tinted border
+# Gray socket - pinky-purple tinted border
 socket_gray = create_socket(10,
-    border_top=(30, 25, 40),
-    border_bot=(18, 15, 28))
+    border_top=(50, 35, 55),
+    border_bot=(35, 22, 40))
 socket_gray.save('Assets/UI/SanitySocketGray.png')
 
 # Gold socket - warm tinted border
@@ -101,12 +101,12 @@ socket_gold = create_socket(10,
     border_bot=(30, 25, 15))
 socket_gold.save('Assets/UI/SanitySocketGold.png')
 
-# Purple-grey fill - darker with purple tint
+# Pinky-purple fill - brighter brain-like color
 gray_fill = create_fill(
     size=8,
-    top_color=(85, 80, 110),
-    bot_color=(55, 50, 80),
-    highlight_color=(140, 135, 170)
+    top_color=(180, 120, 170),
+    bot_color=(140, 85, 130),
+    highlight_color=(220, 180, 210)
 )
 gray_fill.save('Assets/UI/SanityGray.png')
 
