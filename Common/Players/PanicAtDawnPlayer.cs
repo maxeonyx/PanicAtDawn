@@ -15,9 +15,11 @@ public sealed class PanicAtDawnPlayer : ModPlayer
     public float Sanity;
     public int DawnGraceTicks;
     public bool IsSanityRecovering; // True when sanity is regenerating (near spawn OR near teammate) - for UI gold bar
+    public bool ClientNearSpawn;    // Set by client via SyncNearSpawn packet; server reads this for sanity regen
     private int _suffocateTick;
     private int _denyUseTextCooldown;
-    private int _netSyncTimer; // Throttle network sync
+    private int _netSyncTimer;      // Throttle server -> client sanity sync
+    private int _nearSpawnSyncTimer; // Throttle client -> server near-spawn sync
 
     public override void Initialize()
     {
@@ -27,6 +29,8 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         _suffocateTick = 0;
         _denyUseTextCooldown = 0;
         _netSyncTimer = 0;
+        _nearSpawnSyncTimer = 0;
+        ClientNearSpawn = false;
     }
 
     public override void SyncPlayer(int toWho, int fromWho, bool newPlayer)
@@ -82,6 +86,23 @@ public sealed class PanicAtDawnPlayer : ModPlayer
             }
         }
 
+        // Client: report near-spawn status to server periodically (every 6 ticks = 10Hz)
+        // SpawnX/SpawnY aren't reliably synced to the server, so the client must check locally.
+        if (Main.netMode == NetmodeID.MultiplayerClient && Player.whoAmI == Main.myPlayer && cfg.EnableLinkSanity)
+        {
+            _nearSpawnSyncTimer++;
+            if (_nearSpawnSyncTimer >= 6)
+            {
+                _nearSpawnSyncTimer = 0;
+                bool nearSpawn = Shelter.IsNearSpawnPoint(Player, cfg.SpawnSafeRadiusTiles);
+                ModPacket packet = Mod.GetPacket();
+                packet.Write((byte)PanicAtDawn.MessageType.SyncNearSpawn);
+                packet.Write((byte)Player.whoAmI);
+                packet.Write(nearSpawn);
+                packet.Send();
+            }
+        }
+
 
     }
 
@@ -109,7 +130,11 @@ public sealed class PanicAtDawnPlayer : ModPlayer
     private void UpdateLinkSanity(PanicAtDawnConfig cfg)
     {
         // Check if player is near their spawn point (bed).
-        bool nearSpawn = Shelter.IsNearSpawnPoint(Player, cfg.SpawnSafeRadiusTiles);
+        // In multiplayer, SpawnX/SpawnY aren't reliably synced to the server,
+        // so we use the client-reported ClientNearSpawn flag instead.
+        bool nearSpawn = Main.netMode == NetmodeID.Server
+            ? ClientNearSpawn
+            : Shelter.IsNearSpawnPoint(Player, cfg.SpawnSafeRadiusTiles);
 
         if (nearSpawn)
         {

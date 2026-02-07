@@ -15,7 +15,8 @@ public sealed class PanicAtDawn : Mod
     {
         SyncSanity,
         ApplySuffocation, // Server -> Client: tells client to hurt themselves
-        CheckDawn         // Server -> Client: tells client to check dawn safety and kill themselves if unsafe
+        CheckDawn,        // Server -> Client: tells client to check dawn safety and kill themselves if unsafe
+        SyncNearSpawn     // Client -> Server: client reports whether it's near its bed spawn
     }
 
     public override void HandlePacket(BinaryReader reader, int whoAmI)
@@ -90,6 +91,21 @@ public sealed class PanicAtDawn : Mod
                             9999.0,
                             0);
                     }
+                }
+                break;
+
+            case MessageType.SyncNearSpawn:
+                // Client tells server whether it's near its bed spawn
+                // (SpawnX/SpawnY aren't reliably synced to the server, so clients must report this)
+                byte spawnPlayerIndex = reader.ReadByte();
+                bool nearSpawn = reader.ReadBoolean();
+
+                if (Main.netMode == NetmodeID.Server
+                    && spawnPlayerIndex < Main.maxPlayers
+                    && Main.player[spawnPlayerIndex].active)
+                {
+                    var modPlayer = Main.player[spawnPlayerIndex].GetModPlayer<PanicAtDawnPlayer>();
+                    modPlayer.ClientNearSpawn = nearSpawn;
                 }
                 break;
         }
