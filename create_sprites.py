@@ -51,11 +51,12 @@ def create_socket(size=10, border_top=(25, 25, 30), border_bot=(15, 15, 20)):
             fill_color = lerp_color(fill_top, fill_bot, t)
             
             is_border = x == 0 or x == size-1 or y == 0 or y == size-1
-            # Also border the pixels next to cut corners
-            is_border = is_border or (x == 1 and y == 0) or (x == 0 and y == 1)
-            is_border = is_border or (x == size-2 and y == 0) or (x == size-1 and y == 1)
-            is_border = is_border or (x == 1 and y == size-1) or (x == 0 and y == size-2)
-            is_border = is_border or (x == size-2 and y == size-1) or (x == size-1 and y == size-2)
+            # Also border the pixels next to cut corners (on edges, already covered above)
+            # AND the inner diagonal pixel exposed by each corner cut
+            is_border = is_border or (x == 1 and y == 1)
+            is_border = is_border or (x == size-2 and y == 1)
+            is_border = is_border or (x == 1 and y == size-2)
+            is_border = is_border or (x == size-2 and y == size-2)
             
             if is_border:
                 img.putpixel((x, y), (*border_color, 180))
