@@ -14,7 +14,6 @@ public sealed class PanicAtDawn : Mod
     internal enum MessageType : byte
     {
         SyncSanity,
-        ApplySuffocation, // Server -> Client: tells client to hurt themselves
         CheckDawn,        // Server -> Client: tells client to check dawn safety and kill themselves if unsafe
         SyncNearSpawn     // Client -> Server: client reports whether it's near its bed spawn
     }
@@ -28,13 +27,15 @@ public sealed class PanicAtDawn : Mod
             case MessageType.SyncSanity:
                 byte playerIndex = reader.ReadByte();
                 float sanity = reader.ReadSingle();
-                bool isInSafeZone = reader.ReadBoolean();
+                bool isRecovering = reader.ReadBoolean();
+                bool isSuffocating = reader.ReadBoolean();
 
                 if (playerIndex < Main.maxPlayers && Main.player[playerIndex].active)
                 {
                     var modPlayer = Main.player[playerIndex].GetModPlayer<PanicAtDawnPlayer>();
                     modPlayer.Sanity = sanity;
-                    modPlayer.IsSanityRecovering = isInSafeZone;
+                    modPlayer.IsSanityRecovering = isRecovering;
+                    modPlayer.IsSuffocating = isSuffocating;
                 }
 
                 // Server forwards to other clients
@@ -44,28 +45,9 @@ public sealed class PanicAtDawn : Mod
                     packet.Write((byte)MessageType.SyncSanity);
                     packet.Write(playerIndex);
                     packet.Write(sanity);
-                    packet.Write(isInSafeZone);
+                    packet.Write(isRecovering);
+                    packet.Write(isSuffocating);
                     packet.Send(-1, whoAmI); // Send to all except sender
-                }
-                break;
-
-            case MessageType.ApplySuffocation:
-                // Server tells client to damage themselves (client-authoritative for player health)
-                byte targetPlayer = reader.ReadByte();
-                int damage = reader.ReadInt32();
-
-                // Only the target client should apply the damage to themselves
-                if (Main.netMode == NetmodeID.MultiplayerClient && targetPlayer == Main.myPlayer)
-                {
-                    Player player = Main.LocalPlayer;
-                    if (!player.dead)
-                    {
-                        player.Hurt(
-                            Terraria.DataStructures.PlayerDeathReason.ByCustomReason(
-                                NetworkText.FromLiteral($"{player.name} had a panic attack.")),
-                            damage,
-                            0);
-                    }
                 }
                 break;
 

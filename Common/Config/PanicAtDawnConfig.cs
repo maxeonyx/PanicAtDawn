@@ -30,10 +30,6 @@ public sealed class PanicAtDawnConfig : ModConfig
     [Range(0.1f, 50f)]
     public float SanityRegenPerSecond;
 
-    [DefaultValue(20)]
-    [Range(1, 200)]
-    public int SuffocationDamagePerSecond;
-
     [DefaultValue(true)]
     public bool DisableRecallAndMirrors;
 

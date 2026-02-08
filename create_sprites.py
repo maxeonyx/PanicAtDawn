@@ -118,4 +118,19 @@ gold_fill = create_fill(
 )
 gold_fill.save('Assets/UI/SanityGold.png')
 
+# Dark orange-red socket - danger tinted border (suffocating)
+socket_red = create_socket(10,
+    border_top=(60, 25, 15),
+    border_bot=(40, 15, 10))
+socket_red.save('Assets/UI/SanitySocketRed.png')
+
+# Dark orange-red fill - danger color (suffocating)
+red_fill = create_fill(
+    size=8,
+    top_color=(200, 80, 40),
+    bot_color=(160, 50, 20),
+    highlight_color=(240, 140, 80)
+)
+red_fill.save('Assets/UI/SanityRed.png')
+
 print("Created sprites in Assets/UI/")

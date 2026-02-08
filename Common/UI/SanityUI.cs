@@ -24,23 +24,29 @@ public sealed class SanityUI : ModSystem
     
     private static Asset<Texture2D> _socketGrayTex;
     private static Asset<Texture2D> _socketGoldTex;
+    private static Asset<Texture2D> _socketRedTex;
     private static Asset<Texture2D> _grayTex;
     private static Asset<Texture2D> _goldTex;
+    private static Asset<Texture2D> _redTex;
 
     public override void Load()
     {
         _socketGrayTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketGray");
         _socketGoldTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketGold");
+        _socketRedTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketRed");
         _grayTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityGray");
         _goldTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityGold");
+        _redTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityRed");
     }
 
     public override void Unload()
     {
         _socketGrayTex = null;
         _socketGoldTex = null;
+        _socketRedTex = null;
         _grayTex = null;
         _goldTex = null;
+        _redTex = null;
     }
 
     public override void ModifyInterfaceLayers(System.Collections.Generic.List<GameInterfaceLayer> layers)
@@ -58,7 +64,8 @@ public sealed class SanityUI : ModSystem
 
     private static bool Draw()
     {
-        if (_socketGrayTex == null || _socketGoldTex == null || _grayTex == null || _goldTex == null)
+        if (_socketGrayTex == null || _socketGoldTex == null || _socketRedTex == null
+            || _grayTex == null || _goldTex == null || _redTex == null)
             return true;
 
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
@@ -86,8 +93,25 @@ public sealed class SanityUI : ModSystem
         if (!_isVisible)
             return true;
 
-        Texture2D socketTex = mp.IsSanityRecovering ? _socketGoldTex.Value : _socketGrayTex.Value;
-        Texture2D fillTex = mp.IsSanityRecovering ? _goldTex.Value : _grayTex.Value;
+        // Pick textures: red when suffocating, gold when recovering, gray otherwise
+        Texture2D socketTex;
+        Texture2D fillTex;
+        if (mp.IsSuffocating)
+        {
+            socketTex = _socketRedTex.Value;
+            fillTex = _redTex.Value;
+            _isVisible = true; // Always show when dying
+        }
+        else if (mp.IsSanityRecovering)
+        {
+            socketTex = _socketGoldTex.Value;
+            fillTex = _goldTex.Value;
+        }
+        else
+        {
+            socketTex = _socketGrayTex.Value;
+            fillTex = _grayTex.Value;
+        }
 
         // Restart spritebatch with point filtering for crisp pixels
         Main.spriteBatch.End();

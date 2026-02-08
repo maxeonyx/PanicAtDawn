@@ -15,8 +15,8 @@ public sealed class PanicAtDawnPlayer : ModPlayer
     public float Sanity;
     public int DawnGraceTicks;
     public bool IsSanityRecovering; // True when sanity is regenerating (near spawn OR near teammate) - for UI gold bar
+    public bool IsSuffocating;      // True when sanity is at zero and player is taking DOT - for UI red bar
     public bool ClientNearSpawn;    // Set by client via SyncNearSpawn packet; server reads this for sanity regen
-    private int _suffocateTick;
     private int _denyUseTextCooldown;
     private int _netSyncTimer;      // Throttle server -> client sanity sync
     private int _nearSpawnSyncTimer; // Throttle client -> server near-spawn sync
@@ -26,11 +26,11 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
         Sanity = cfg.SanityMax;
         DawnGraceTicks = 0;
-        _suffocateTick = 0;
         _denyUseTextCooldown = 0;
         _netSyncTimer = 0;
         _nearSpawnSyncTimer = 0;
         ClientNearSpawn = false;
+        IsSuffocating = false;
     }
 
     public override void SyncPlayer(int toWho, int fromWho, bool newPlayer)
@@ -41,6 +41,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         packet.Write((byte)Player.whoAmI);
         packet.Write(Sanity);
         packet.Write(IsSanityRecovering);
+        packet.Write(IsSuffocating);
         packet.Send(toWho, fromWho);
     }
 
@@ -48,7 +49,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
     {
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
         Sanity = cfg.SanityMax;
-        _suffocateTick = 0;
+        IsSuffocating = false;
     }
 
     public override void OnEnterWorld()
@@ -103,6 +104,23 @@ public sealed class PanicAtDawnPlayer : ModPlayer
             }
         }
 
+        // Client-side suffocation DOT (like drowning — bypasses armor, scales to max HP).
+        // Applied by the client that owns this player, since health is client-authoritative.
+        // Server syncs Sanity and IsSuffocating; client applies the actual damage.
+        if (cfg.EnableLinkSanity && Player.whoAmI == Main.myPlayer && !Player.dead && IsSuffocating)
+        {
+            // Deal statLifeMax2 / (60s * 60tps) per tick = death in 60 seconds
+            float damagePerTick = Player.statLifeMax2 / 3600f;
+            Player.statLife -= (int)Math.Max(Math.Ceiling(damagePerTick), 1);
+            if (Player.statLife <= 0)
+            {
+                Player.statLife = 0;
+                Player.KillMe(
+                    Terraria.DataStructures.PlayerDeathReason.ByCustomReason(
+                        NetworkText.FromLiteral($"{Player.name} had a panic attack.")),
+                    1.0, 0);
+            }
+        }
 
     }
 
@@ -141,7 +159,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
             // Safe near spawn: regen sanity.
             Sanity = Math.Clamp(Sanity + (cfg.SanityRegenPerSecond / 60f), 0f, cfg.SanityMax);
             IsSanityRecovering = true;
-            _suffocateTick = 0;
+            IsSuffocating = false;
             return;
         }
 
@@ -169,14 +187,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
             // Singleplayer / no linked teammate: sanity drains continuously.
             Sanity = Math.Clamp(Sanity - (drainRate / 60f), 0f, cfg.SanityMax);
             IsSanityRecovering = false;
-
-            if (Sanity > 0f)
-            {
-                _suffocateTick = 0;
-                return;
-            }
-
-            ApplySuffocation(cfg);
+            IsSuffocating = Sanity <= 0f;
             return;
         }
 
@@ -210,54 +221,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         }
 
         Sanity = Math.Clamp(Sanity + (delta / 60f), 0f, cfg.SanityMax);
-
-        if (Sanity > 0f)
-        {
-            _suffocateTick = 0;
-            return;
-        }
-
-        ApplySuffocation(cfg);
-    }
-
-    private void ApplySuffocation(PanicAtDawnConfig cfg)
-    {
-        // Apply damage as a steady DOT. Server is authoritative.
-        _suffocateTick++;
-        
-        // Debug: log when we're about to apply damage
-        if (_suffocateTick >= 60 && Main.netMode != NetmodeID.MultiplayerClient)
-        {
-            Mod.Logger.Info($"[Suffocation] Player {Player.name}: tick={_suffocateTick}, dead={Player.dead}, netMode={Main.netMode}");
-        }
-        
-        if (_suffocateTick < 60)
-            return;
-        _suffocateTick = 0;
-
-        if (Player.dead)
-            return;
-
-        int damage = cfg.SuffocationDamagePerSecond;
-
-        if (Main.netMode == NetmodeID.Server)
-        {
-            // Server: send packet to client telling them to hurt themselves
-            // (Player health is client-authoritative in Terraria)
-            Mod.Logger.Info($"[Suffocation] Sending {damage} damage packet to {Player.name} (whoAmI={Player.whoAmI})");
-            ModPacket packet = Mod.GetPacket();
-            packet.Write((byte)PanicAtDawn.MessageType.ApplySuffocation);
-            packet.Write((byte)Player.whoAmI);
-            packet.Write(damage);
-            packet.Send(Player.whoAmI); // Send only to the target client
-        }
-        else if (Main.netMode == NetmodeID.SinglePlayer)
-        {
-            // Singleplayer: apply damage directly
-            Mod.Logger.Info($"[Suffocation] Dealing {damage} damage to {Player.name}");
-            Player.Hurt(Terraria.DataStructures.PlayerDeathReason.ByCustomReason(NetworkText.FromLiteral($"{Player.name} had a panic attack.")), damage, 0);
-        }
-        // MultiplayerClient: do nothing here, wait for server packet
+        IsSuffocating = Sanity <= 0f;
     }
 
     private int FindClosestLinkedTeammate()
