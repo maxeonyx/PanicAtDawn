@@ -20,6 +20,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
     private int _denyUseTextCooldown;
     private int _netSyncTimer;      // Throttle server -> client sanity sync
     private int _nearSpawnSyncTimer; // Throttle client -> server near-spawn sync
+    private int _suffocationTick; // Counts ticks between 1-damage applications for low-HP suffocation
 
     public override void Initialize()
     {
@@ -50,6 +51,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
         Sanity = cfg.SanityMax;
         IsSuffocating = false;
+        _suffocationTick = 0;
     }
 
     public override void OnEnterWorld()
@@ -107,11 +109,28 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         // Client-side suffocation DOT (like drowning — bypasses armor, scales to max HP).
         // Applied by the client that owns this player, since health is client-authoritative.
         // Server syncs Sanity and IsSuffocating; client applies the actual damage.
-        if (cfg.EnableLinkSanity && Player.whoAmI == Main.myPlayer && !Player.dead && IsSuffocating)
+        // MUST exclude server — in host-and-play, whoAmI == myPlayer is true on both sides.
+        if (cfg.EnableLinkSanity && Main.netMode != NetmodeID.Server
+            && Player.whoAmI == Main.myPlayer && !Player.dead && IsSuffocating)
         {
-            // Deal statLifeMax2 / (60s * 60tps) per tick = death in 60 seconds
+            // Death in 60 seconds regardless of max HP.
+            // damagePerTick = statLifeMax2 / 3600. If >= 1, deal that every tick.
+            // If < 1, deal 1 damage every N ticks where N = ceil(3600 / statLifeMax2).
             float damagePerTick = Player.statLifeMax2 / 3600f;
-            Player.statLife -= (int)Math.Max(Math.Ceiling(damagePerTick), 1);
+            if (damagePerTick >= 1f)
+            {
+                Player.statLife -= (int)damagePerTick;
+            }
+            else
+            {
+                int ticksPerDamage = (int)Math.Ceiling(3600f / Player.statLifeMax2);
+                _suffocationTick++;
+                if (_suffocationTick >= ticksPerDamage)
+                {
+                    _suffocationTick = 0;
+                    Player.statLife -= 1;
+                }
+            }
             if (Player.statLife <= 0)
             {
                 Player.statLife = 0;
