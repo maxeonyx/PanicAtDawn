@@ -119,7 +119,9 @@ public sealed class PanicAtDawnPlayer : ModPlayer
             float damagePerTick = Player.statLifeMax2 / 900f;
             if (damagePerTick >= 1f)
             {
-                Player.statLife -= (int)damagePerTick;
+                int dmg = (int)damagePerTick;
+                Player.statLife -= dmg;
+                CombatText.NewText(Player.getRect(), CombatText.DamagedFriendly, dmg);
             }
             else
             {
@@ -129,6 +131,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
                 {
                     _suffocationTick = 0;
                     Player.statLife -= 1;
+                    CombatText.NewText(Player.getRect(), CombatText.DamagedFriendly, 1);
                 }
             }
             if (Player.statLife <= 0)
