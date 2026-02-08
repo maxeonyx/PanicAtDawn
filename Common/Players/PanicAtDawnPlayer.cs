@@ -113,17 +113,17 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         if (cfg.EnableLinkSanity && Main.netMode != NetmodeID.Server
             && Player.whoAmI == Main.myPlayer && !Player.dead && IsSuffocating)
         {
-            // Death in 60 seconds regardless of max HP.
-            // damagePerTick = statLifeMax2 / 3600. If >= 1, deal that every tick.
-            // If < 1, deal 1 damage every N ticks where N = ceil(3600 / statLifeMax2).
-            float damagePerTick = Player.statLifeMax2 / 3600f;
+            // Death in 20 seconds regardless of max HP.
+            // damagePerTick = statLifeMax2 / 1200. If >= 1, deal that every tick.
+            // If < 1, deal 1 damage every N ticks where N = ceil(1200 / statLifeMax2).
+            float damagePerTick = Player.statLifeMax2 / 1200f;
             if (damagePerTick >= 1f)
             {
                 Player.statLife -= (int)damagePerTick;
             }
             else
             {
-                int ticksPerDamage = (int)Math.Ceiling(3600f / Player.statLifeMax2);
+                int ticksPerDamage = (int)Math.Ceiling(1200f / Player.statLifeMax2);
                 _suffocationTick++;
                 if (_suffocationTick >= ticksPerDamage)
                 {
