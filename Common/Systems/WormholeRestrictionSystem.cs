@@ -16,12 +16,7 @@ public sealed class WormholeRestrictionSystem : ModSystem
 
     public override void Load()
     {
-        On.Terraria.Player.UnityTeleport += OnUnityTeleport;
-    }
-
-    public override void Unload()
-    {
-        On.Terraria.Player.UnityTeleport -= OnUnityTeleport;
+        Terraria.On_Player.UnityTeleport += OnUnityTeleport;
     }
 
     public override void PostUpdateEverything()
@@ -30,7 +25,7 @@ public sealed class WormholeRestrictionSystem : ModSystem
             _denyTextCooldown--;
     }
 
-    private static void OnUnityTeleport(On.Terraria.Player.orig_UnityTeleport orig, Player self, Vector2 telePos)
+    private static void OnUnityTeleport(Terraria.On_Player.orig_UnityTeleport orig, Player self, Vector2 telePos)
     {
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
 
