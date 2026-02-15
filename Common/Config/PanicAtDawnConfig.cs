@@ -37,6 +37,9 @@ public sealed class PanicAtDawnConfig : ModConfig
     public bool ReplaceRecallWithWormhole;
 
     [DefaultValue(true)]
+    public bool RequireFullHealthForWormhole;
+
+    [DefaultValue(true)]
     public bool EnableDawnShelterRule;
 
     [DefaultValue(60)]
