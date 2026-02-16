@@ -28,6 +28,7 @@ public sealed class PanicAtDawn : Mod
                 byte playerIndex = reader.ReadByte();
                 float sanity = reader.ReadSingle();
                 bool isRecovering = reader.ReadBoolean();
+                bool isSheltered = reader.ReadBoolean();
                 bool isSuffocating = reader.ReadBoolean();
 
                 if (playerIndex < Main.maxPlayers && Main.player[playerIndex].active)
@@ -35,6 +36,7 @@ public sealed class PanicAtDawn : Mod
                     var modPlayer = Main.player[playerIndex].GetModPlayer<PanicAtDawnPlayer>();
                     modPlayer.Sanity = sanity;
                     modPlayer.IsSanityRecovering = isRecovering;
+                    modPlayer.IsSheltered = isSheltered;
                     modPlayer.IsSuffocating = isSuffocating;
                 }
 
@@ -46,6 +48,7 @@ public sealed class PanicAtDawn : Mod
                     packet.Write(playerIndex);
                     packet.Write(sanity);
                     packet.Write(isRecovering);
+                    packet.Write(isSheltered);
                     packet.Write(isSuffocating);
                     packet.Send(-1, whoAmI); // Send to all except sender
                 }
@@ -63,7 +66,7 @@ public sealed class PanicAtDawn : Mod
                         break;
 
                     var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
-                    bool safe = Shelter.IsNearSpawnPoint(player, cfg.SpawnSafeRadiusTiles);
+                    bool safe = Shelter.IsSheltered(player, cfg.SpawnSafeRadiusTiles, cfg.EnablePylonSafeZones);
 
                     if (!safe)
                     {

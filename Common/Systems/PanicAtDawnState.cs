@@ -53,7 +53,7 @@ public sealed class PanicAtDawnState : ModSystem
             if (p.GetModPlayer<PanicAtDawnPlayer>().DawnGraceTicks > 0)
                 return;
 
-            bool safe = Shelter.IsNearSpawnPoint(p, cfg.SpawnSafeRadiusTiles);
+            bool safe = Shelter.IsSheltered(p, cfg.SpawnSafeRadiusTiles, cfg.EnablePylonSafeZones);
             if (!safe)
             {
                 p.KillMe(Terraria.DataStructures.PlayerDeathReason.ByCustomReason(

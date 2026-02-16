@@ -25,18 +25,22 @@ public sealed class SanityUI : ModSystem
     private static Asset<Texture2D> _socketGrayTex;
     private static Asset<Texture2D> _socketGoldTex;
     private static Asset<Texture2D> _socketRedTex;
+    private static Asset<Texture2D> _socketGreenTex;
     private static Asset<Texture2D> _grayTex;
     private static Asset<Texture2D> _goldTex;
     private static Asset<Texture2D> _redTex;
+    private static Asset<Texture2D> _greenTex;
 
     public override void Load()
     {
         _socketGrayTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketGray");
         _socketGoldTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketGold");
         _socketRedTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketRed");
+        _socketGreenTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketGreen");
         _grayTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityGray");
         _goldTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityGold");
         _redTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityRed");
+        _greenTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityGreen");
     }
 
     public override void Unload()
@@ -44,9 +48,11 @@ public sealed class SanityUI : ModSystem
         _socketGrayTex = null;
         _socketGoldTex = null;
         _socketRedTex = null;
+        _socketGreenTex = null;
         _grayTex = null;
         _goldTex = null;
         _redTex = null;
+        _greenTex = null;
     }
 
     public override void ModifyInterfaceLayers(System.Collections.Generic.List<GameInterfaceLayer> layers)
@@ -64,8 +70,8 @@ public sealed class SanityUI : ModSystem
 
     private static bool Draw()
     {
-        if (_socketGrayTex == null || _socketGoldTex == null || _socketRedTex == null
-            || _grayTex == null || _goldTex == null || _redTex == null)
+        if (_socketGrayTex == null || _socketGoldTex == null || _socketRedTex == null || _socketGreenTex == null
+            || _grayTex == null || _goldTex == null || _redTex == null || _greenTex == null)
             return true;
 
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
@@ -93,10 +99,15 @@ public sealed class SanityUI : ModSystem
         if (!_isVisible)
             return true;
 
-        // Pick textures: gold when recovering, red sockets when draining at <=10%, gray otherwise
+        // Pick textures by priority: green (sheltered), gold (teammate), red (critical drain), gray (default)
         Texture2D socketTex;
         Texture2D fillTex;
-        if (mp.IsSanityRecovering)
+        if (mp.IsSheltered)
+        {
+            socketTex = _socketGreenTex.Value;
+            fillTex = _greenTex.Value;
+        }
+        else if (mp.IsSanityRecovering)
         {
             socketTex = _socketGoldTex.Value;
             fillTex = _goldTex.Value;

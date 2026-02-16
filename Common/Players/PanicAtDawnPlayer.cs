@@ -14,7 +14,8 @@ public sealed class PanicAtDawnPlayer : ModPlayer
 {
     public float Sanity;
     public int DawnGraceTicks;
-    public bool IsSanityRecovering; // True when sanity is regenerating (near spawn OR near teammate) - for UI gold bar
+    public bool IsSanityRecovering; // True when sanity is regenerating (near teammate) - for UI gold bar
+    public bool IsSheltered;         // True when near bed spawn or active pylon - for UI green bar
     public bool IsSuffocating;      // True when sanity is at zero and player is taking DOT - for UI red bar
     public bool ClientNearSpawn;    // Set by client via SyncNearSpawn packet; server reads this for sanity regen
     private int _denyUseTextCooldown;
@@ -31,6 +32,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         _netSyncTimer = 0;
         _nearSpawnSyncTimer = 0;
         ClientNearSpawn = false;
+        IsSheltered = false;
         IsSuffocating = false;
     }
 
@@ -42,6 +44,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         packet.Write((byte)Player.whoAmI);
         packet.Write(Sanity);
         packet.Write(IsSanityRecovering);
+        packet.Write(IsSheltered);
         packet.Write(IsSuffocating);
         packet.Send(toWho, fromWho);
     }
@@ -169,17 +172,21 @@ public sealed class PanicAtDawnPlayer : ModPlayer
 
     private void UpdateLinkSanity(PanicAtDawnConfig cfg)
     {
-        // Check if player is near their spawn point (bed).
+        // Check if player is sheltered (near bed spawn or active pylon).
         // In multiplayer, SpawnX/SpawnY aren't reliably synced to the server,
-        // so we use the client-reported ClientNearSpawn flag instead.
+        // so we use the client-reported ClientNearSpawn flag for the bed-spawn half.
+        // Pylon positions are world state and can be checked server-side directly.
         bool nearSpawn = Main.netMode == NetmodeID.Server
             ? ClientNearSpawn
             : Shelter.IsNearSpawnPoint(Player, cfg.SpawnSafeRadiusTiles);
+        bool nearPylon = cfg.EnablePylonSafeZones && Shelter.IsNearActivePylon(Player, cfg.SpawnSafeRadiusTiles);
+        bool sheltered = nearSpawn || nearPylon;
 
-        if (nearSpawn)
+        if (sheltered)
         {
-            // Safe near spawn: regen sanity.
+            // Safe at shelter: regen sanity, show green bar.
             Sanity = Math.Clamp(Sanity + (cfg.SanityRegenPerSecond / 60f), 0f, cfg.SanityMax);
+            IsSheltered = true;
             IsSanityRecovering = true;
             IsSuffocating = false;
             return;
@@ -208,6 +215,7 @@ public sealed class PanicAtDawnPlayer : ModPlayer
         {
             // Singleplayer / no linked teammate: sanity drains continuously.
             Sanity = Math.Clamp(Sanity - (drainRate / 60f), 0f, cfg.SanityMax);
+            IsSheltered = false;
             IsSanityRecovering = false;
             IsSuffocating = Sanity <= 0f;
             return;
@@ -234,11 +242,13 @@ public sealed class PanicAtDawnPlayer : ModPlayer
             float myShare = (weightMe / totalWeight) * sharedPool;
             
             delta = myShare;
+            IsSheltered = false;
             IsSanityRecovering = true; // Near teammate = recovering (gold bar)
         }
         else
         {
             delta = -drainRate;
+            IsSheltered = false;
             IsSanityRecovering = false;
         }
 

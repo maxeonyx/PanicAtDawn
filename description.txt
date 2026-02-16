@@ -1,9 +1,9 @@
 Survival horror co-op mod: stay close to your partner, no recall/mirror, and be home by dawn or die.
 
 Features (all configurable):
-- Sanity: stray too far from teammates and sanity drains. At zero, you panic and take damage until you die. Stay near your bed spawn to recover.
+- Sanity: stray too far from teammates and sanity drains. At zero, you panic and take damage until you die. Stay near your bed spawn or an active pylon to recover.
 - No Recall: Magic Mirror and Recall Potions are converted to Wormhole Potions - your emergency regroup tool.
-- Die at Dawn: when the sun rises, if you're not near your bed spawn, you die and drop your inventory.
+- Die at Dawn: when the sun rises, if you're not near your bed spawn or an active pylon, you die and drop your inventory.
 
 Perfect for a tense co-op experience with your friends!
 

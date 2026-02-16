@@ -134,4 +134,19 @@ red_fill = create_fill(
 )
 red_fill.save('Assets/UI/SanityRed.png')
 
+# Green socket - sheltered/home tinted border
+socket_green = create_socket(10,
+    border_top=(30, 55, 35),
+    border_bot=(18, 40, 22))
+socket_green.save('Assets/UI/SanitySocketGreen.png')
+
+# Green fill - sheltered/home color
+green_fill = create_fill(
+    size=8,
+    top_color=(100, 210, 120),
+    bot_color=(60, 170, 80),
+    highlight_color=(180, 240, 190)
+)
+green_fill.save('Assets/UI/SanityGreen.png')
+
 print("Created sprites in Assets/UI/")

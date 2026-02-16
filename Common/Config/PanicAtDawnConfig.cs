@@ -49,4 +49,7 @@ public sealed class PanicAtDawnConfig : ModConfig
     [DefaultValue(50)]
     [Range(20, 300)]
     public int SpawnSafeRadiusTiles;
+
+    [DefaultValue(true)]
+    public bool EnablePylonSafeZones;
 }
