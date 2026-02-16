@@ -151,16 +151,16 @@ green_fill.save('Assets/UI/SanityGreen.png')
 
 # Amber socket - dawn warning tinted border
 socket_amber = create_socket(10,
-    border_top=(60, 40, 15),
-    border_bot=(40, 25, 10))
+    border_top=(65, 30, 10),
+    border_bot=(45, 18, 8))
 socket_amber.save('Assets/UI/SanitySocketAmber.png')
 
-# Amber fill - dawn warning color
+# Amber fill - dawn warning color (red-orange)
 amber_fill = create_fill(
     size=8,
-    top_color=(240, 160, 50),
-    bot_color=(200, 120, 20),
-    highlight_color=(255, 220, 150)
+    top_color=(240, 120, 30),
+    bot_color=(200, 80, 15),
+    highlight_color=(255, 180, 100)
 )
 amber_fill.save('Assets/UI/SanityAmber.png')
 
