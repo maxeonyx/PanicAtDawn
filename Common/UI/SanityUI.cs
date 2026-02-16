@@ -19,8 +19,13 @@ public sealed class SanityUI : ModSystem
     
     private const float ShowThreshold = 0.90f;
     private const float HideThreshold = 1.00f;
+    private const int FlashDurationTicks = 120; // 2 seconds at 60fps
+
+    private enum VisualState { Gray, Gold, Green, Red, Amber }
 
     private static bool _isVisible = false;
+    private static VisualState _prevState = VisualState.Gray;
+    private static int _flashTimer = 0;
     
     private static Asset<Texture2D> _socketGrayTex;
     private static Asset<Texture2D> _socketGoldTex;
@@ -102,7 +107,33 @@ public sealed class SanityUI : ModSystem
         bool dawnApproaching = !Main.dayTime && Main.time >= 28800.0
             && cfg.EnableDawnShelterRule && !mp.IsSheltered;
 
-        if (dawnApproaching)
+        // Determine visual state (priority order)
+        VisualState state;
+        if (mp.IsSheltered)
+            state = VisualState.Green;
+        else if (mp.IsSanityRecovering)
+            state = VisualState.Gold;
+        else if (sanityPercent <= 0.10f)
+            state = VisualState.Red;
+        else if (dawnApproaching)
+            state = VisualState.Amber;
+        else
+            state = VisualState.Gray;
+
+        // Flash bar briefly on state changes (e.g. entering/leaving shelter)
+        if (state != _prevState)
+        {
+            _flashTimer = FlashDurationTicks;
+            _prevState = state;
+        }
+        if (_flashTimer > 0)
+            _flashTimer--;
+
+        // Visibility: always show when critical or dawn warning,
+        // flash on state change, otherwise use sanity thresholds with hysteresis
+        if (state == VisualState.Red || state == VisualState.Amber)
+            _isVisible = true;
+        else if (_flashTimer > 0)
             _isVisible = true;
         else if (sanityPercent <= ShowThreshold)
             _isVisible = true;
@@ -112,35 +143,31 @@ public sealed class SanityUI : ModSystem
         if (!_isVisible)
             return true;
 
-        // Pick textures by priority: green (sheltered), gold (teammate), red (critical drain),
-        // amber (dawn warning), gray (default)
+        // Pick textures for current state
         Texture2D socketTex;
         Texture2D fillTex;
-        if (mp.IsSheltered)
+        switch (state)
         {
-            socketTex = _socketGreenTex.Value;
-            fillTex = _greenTex.Value;
-        }
-        else if (mp.IsSanityRecovering)
-        {
-            socketTex = _socketGoldTex.Value;
-            fillTex = _goldTex.Value;
-        }
-        else if (sanityPercent <= 0.10f)
-        {
-            socketTex = _socketRedTex.Value;
-            fillTex = _redTex.Value;
-            _isVisible = true; // Always show when dying
-        }
-        else if (dawnApproaching)
-        {
-            socketTex = _socketAmberTex.Value;
-            fillTex = _amberTex.Value;
-        }
-        else
-        {
-            socketTex = _socketGrayTex.Value;
-            fillTex = _grayTex.Value;
+            case VisualState.Green:
+                socketTex = _socketGreenTex.Value;
+                fillTex = _greenTex.Value;
+                break;
+            case VisualState.Gold:
+                socketTex = _socketGoldTex.Value;
+                fillTex = _goldTex.Value;
+                break;
+            case VisualState.Red:
+                socketTex = _socketRedTex.Value;
+                fillTex = _redTex.Value;
+                break;
+            case VisualState.Amber:
+                socketTex = _socketAmberTex.Value;
+                fillTex = _amberTex.Value;
+                break;
+            default:
+                socketTex = _socketGrayTex.Value;
+                fillTex = _grayTex.Value;
+                break;
         }
 
         // Restart spritebatch with point filtering for crisp pixels
