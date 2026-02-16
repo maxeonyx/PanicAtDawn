@@ -26,10 +26,12 @@ public sealed class SanityUI : ModSystem
     private static Asset<Texture2D> _socketGoldTex;
     private static Asset<Texture2D> _socketRedTex;
     private static Asset<Texture2D> _socketGreenTex;
+    private static Asset<Texture2D> _socketAmberTex;
     private static Asset<Texture2D> _grayTex;
     private static Asset<Texture2D> _goldTex;
     private static Asset<Texture2D> _redTex;
     private static Asset<Texture2D> _greenTex;
+    private static Asset<Texture2D> _amberTex;
 
     public override void Load()
     {
@@ -37,10 +39,12 @@ public sealed class SanityUI : ModSystem
         _socketGoldTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketGold");
         _socketRedTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketRed");
         _socketGreenTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketGreen");
+        _socketAmberTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanitySocketAmber");
         _grayTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityGray");
         _goldTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityGold");
         _redTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityRed");
         _greenTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityGreen");
+        _amberTex = ModContent.Request<Texture2D>("PanicAtDawn/Assets/UI/SanityAmber");
     }
 
     public override void Unload()
@@ -49,10 +53,12 @@ public sealed class SanityUI : ModSystem
         _socketGoldTex = null;
         _socketRedTex = null;
         _socketGreenTex = null;
+        _socketAmberTex = null;
         _grayTex = null;
         _goldTex = null;
         _redTex = null;
         _greenTex = null;
+        _amberTex = null;
     }
 
     public override void ModifyInterfaceLayers(System.Collections.Generic.List<GameInterfaceLayer> layers)
@@ -70,8 +76,8 @@ public sealed class SanityUI : ModSystem
 
     private static bool Draw()
     {
-        if (_socketGrayTex == null || _socketGoldTex == null || _socketRedTex == null || _socketGreenTex == null
-            || _grayTex == null || _goldTex == null || _redTex == null || _greenTex == null)
+        if (_socketGrayTex == null || _socketGoldTex == null || _socketRedTex == null || _socketGreenTex == null || _socketAmberTex == null
+            || _grayTex == null || _goldTex == null || _redTex == null || _greenTex == null || _amberTex == null)
             return true;
 
         var cfg = ModContent.GetInstance<PanicAtDawnConfig>();
@@ -91,7 +97,14 @@ public sealed class SanityUI : ModSystem
 
         float sanityPercent = sanity / max;
 
-        if (sanityPercent <= ShowThreshold)
+        // Dawn approaching: last in-game hour of night, player is not sheltered.
+        // Night lasts 32400 ticks; one hour = 3600 ticks; warning at >= 28800.
+        bool dawnApproaching = !Main.dayTime && Main.time >= 28800.0
+            && cfg.EnableDawnShelterRule && !mp.IsSheltered;
+
+        if (dawnApproaching)
+            _isVisible = true;
+        else if (sanityPercent <= ShowThreshold)
             _isVisible = true;
         else if (sanityPercent >= HideThreshold)
             _isVisible = false;
@@ -99,7 +112,8 @@ public sealed class SanityUI : ModSystem
         if (!_isVisible)
             return true;
 
-        // Pick textures by priority: green (sheltered), gold (teammate), red (critical drain), gray (default)
+        // Pick textures by priority: green (sheltered), gold (teammate), red (critical drain),
+        // amber (dawn warning), gray (default)
         Texture2D socketTex;
         Texture2D fillTex;
         if (mp.IsSheltered)
@@ -117,6 +131,11 @@ public sealed class SanityUI : ModSystem
             socketTex = _socketRedTex.Value;
             fillTex = _redTex.Value;
             _isVisible = true; // Always show when dying
+        }
+        else if (dawnApproaching)
+        {
+            socketTex = _socketAmberTex.Value;
+            fillTex = _amberTex.Value;
         }
         else
         {

@@ -149,4 +149,19 @@ green_fill = create_fill(
 )
 green_fill.save('Assets/UI/SanityGreen.png')
 
+# Amber socket - dawn warning tinted border
+socket_amber = create_socket(10,
+    border_top=(60, 40, 15),
+    border_bot=(40, 25, 10))
+socket_amber.save('Assets/UI/SanitySocketAmber.png')
+
+# Amber fill - dawn warning color
+amber_fill = create_fill(
+    size=8,
+    top_color=(240, 160, 50),
+    bot_color=(200, 120, 20),
+    highlight_color=(255, 220, 150)
+)
+amber_fill.save('Assets/UI/SanityAmber.png')
+
 print("Created sprites in Assets/UI/")
