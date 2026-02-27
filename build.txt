@@ -1,4 +1,4 @@
 displayName = Panic at Dawn
 author = maxeonyx
-version = 0.1.21
+version = 0.1.22
 homepage = https://github.com/maxeonyx/PanicAtDawn
