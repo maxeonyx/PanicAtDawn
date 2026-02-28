@@ -20,3 +20,4 @@ Fixed in v0.1.16 by detouring `HasUnityPotion` instead of only `UnityTeleport`. 
 ## Future Work
 
 - Configurable dawn warning timing (currently hardcoded to last in-game hour)
+- Disable Magic Conch and Demon Conch (teleportation items not currently blocked — same treatment as recall potions/mirrors)
