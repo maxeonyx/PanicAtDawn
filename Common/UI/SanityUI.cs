@@ -111,12 +111,12 @@ public sealed class SanityUI : ModSystem
         VisualState state;
         if (mp.IsSheltered)
             state = VisualState.Green;
-        else if (mp.IsSanityRecovering)
-            state = VisualState.Gold;
-        else if (sanityPercent <= 0.10f)
-            state = VisualState.Red;
         else if (dawnApproaching)
             state = VisualState.Amber;
+        else if (sanityPercent <= 0.10f)
+            state = VisualState.Red;
+        else if (mp.IsSanityRecovering)
+            state = VisualState.Gold;
         else
             state = VisualState.Gray;
 
